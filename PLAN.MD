@@ -169,13 +169,11 @@ CREATE TABLE incident_events (
   Verified: `tsc --noEmit` clean, `eslint` clean, `next build` succeeds, dev server SSR output inspected via curl (correct structure: top bar, nav, empty-state copy, all three right-rail panels present), and a live CORS preflight against the deployed API from a `localhost:3000` origin returns the expected `access-control-allow-*` headers. **Not verified: actual visual appearance or interactive behavior in a real browser** — no browser/screenshot tool is available in this environment. The build/type/lint/render checks catch structural and logic errors but not visual polish, layout bugs, or runtime UI glitches; a real browser pass (by you, or a future session with that tooling) is still needed before considering Day 7-8 fully closed.
 
   One bug found + fixed: `HexagonDashed` doesn't exist in `@phosphor-icons/react` — corrected to `Hexagon` after checking the package's actual type declarations rather than guessing.
-- **Day 9:** ✅ Prepared, ⚠️ **not yet run — needs your confirmation it works.** This dev environment has no Docker and no WSL Linux distro installed (confirmed: `docker`/`cockroach` commands not found, `wsl -l -v` shows zero distros), and installing a WSL distro is a real system change I won't do without explicit sign-off. Since you asked for a zero-desktop-install alternative, built the demo around **GitHub Codespaces** instead (60 free hours/month on a personal GitHub account, Docker included, runs entirely in-browser):
-  - `.devcontainer/devcontainer.json` — Codespace config with Docker-in-Docker
-  - `resilience-demo/docker-compose.yml` — 3-node insecure CockroachDB cluster, pinned to v26.2.5 to match the Cloud cluster's version, following the [official Docker multi-node pattern](https://www.cockroachlabs.com/docs/v26.2/start-a-local-cluster-in-docker-mac)
-  - `resilience-demo/workload.py` — round-robins queries across all 3 nodes' SQL ports once per second so a killed node's own endpoint failing (expected) is visually distinct from the surviving nodes continuing to serve the same data (the actual resilience proof)
-  - `resilience-demo/README.md` — exact steps to open a Codespace, start the cluster, run the workload, kill/restart a node, and what to narrate in the video
+- **Day 9:** ✅ **Done — fully executed and verified.** Path here had some friction worth recording: this dev environment has no Docker/WSL distro, so we first tried GitHub Codespaces (zero desktop install) — the `.devcontainer/devcontainer.json` docker-in-docker feature never actually attached even after a container rebuild, so that path was abandoned. You then installed Docker Desktop locally, which worked (installed to a per-user path, `%LOCALAPPDATA%\Programs\DockerDesktop`, not the usual `Program Files` — needed its `resources\bin` added to PATH for the session before `docker` was found).
 
-  **I could not execute or verify any of this myself** — no Codespaces/Docker access in this session. It's built directly from official CockroachDB Docker docs, but you need to actually run through `resilience-demo/README.md` yourself before recording, in case something needs adjusting.
+  With Docker Desktop working, ran the actual demo end-to-end: `docker compose up -d` (3-node cluster, v26.2.5, matching the Cloud cluster's version) → `cockroach init` → started `resilience-demo/workload.py` (round-robins queries across all 3 nodes once/second) → `docker compose stop roach2` → **confirmed `roach2` fails while `roach1`/`roach3` keep serving the same data without interruption** → `docker compose start roach2` → **confirmed it rejoins and recovers within ~15 seconds** (first post-rejoin query took 3.9s to catch up, then back to normal). Full captured output is in `resilience-demo/README.md`. Cleaned up afterward (`docker compose down -v`) — rerun it yourself before actually recording, using the same steps, to have it fresh on camera.
+
+  One real bug fixed along the way: `workload.py`'s `print()` calls were silently buffered when not attached to a terminal (only surfaced because I was capturing output programmatically to verify it) — added `flush=True` so output always appears immediately, including if you ever redirect it to a file.
 - **Day 10:** Partial — did a code-level pass against DESIGN.MD §5 (I have no browser here, so this is static-analysis, not a real device/viewport check). Found and fixed two real bugs:
   1. Send button and the resolve-modal close button were 42px/18px hit areas, under the 44×44px minimum the design doc itself specifies — resized to 44×44px (`h-11 w-11`).
   2. The "jump to similarity card" highlight on citation click used the CSS `:target` pseudo-class, which only fires for URL-fragment navigation — but the click handler calls `.focus()` programmatically, so the highlight could never have appeared. Fixed to `:focus`.
@@ -209,17 +207,15 @@ CREATE TABLE incident_events (
 
 ## 10. Final Status — What's Built vs. What's Left
 
-**Fully built, tested, and verified end-to-end against real services** (not mocked): database schema + vector search, the Groq tool-calling agent, the MCP cluster-health tool, transactional incident state + the self-improving-memory loop, Lambda + API Gateway deployment, and the Next.js frontend (build/lint/type-check clean, structural SSR render checked, CORS to the live API confirmed).
+**Fully built, tested, and verified end-to-end against real services** (not mocked): database schema + vector search, the Groq tool-calling agent, the MCP cluster-health tool, transactional incident state + the self-improving-memory loop, Lambda + API Gateway deployment (live at `https://x7452bjwt9.execute-api.ap-southeast-3.amazonaws.com`), the Next.js frontend (build/lint/type-check clean, deployed live to Vercel at `https://continuum-beta-umber.vercel.app/`, CORS from that exact origin confirmed), the GitHub repo (public, MIT license auto-detected), and — as of Day 9 — the resilience demo itself, run end-to-end with real kill/restart/recovery output captured.
 
-**What I could not do myself, and why** — all of these need you:
-- **See the UI in an actual browser.** No browser/screenshot tool is available in this session. Everything in Day 7-8-10 was verified by build tooling and reading rendered HTML, not by looking at it. Please open `npm run dev` in a real browser before recording anything.
-- **Run the resilience demo.** No Docker, no WSL distro, and installing one is a system change I won't make without your sign-off. Built for GitHub Codespaces instead (zero desktop install) per your request — see `resilience-demo/README.md` — but never executed it myself.
-- **Push to GitHub, deploy the frontend to Vercel, record the video, fill out and submit the Devpost form.** All explicitly outside what I can do from here (your GitHub/Vercel logins, a screen recorder, a form only you can submit).
+**What's left — needs you:**
+- **Look at the deployed UI yourself** and confirm it feels right interactively (clicking through chat, citation chips, the resolve modal, responsive behavior). You already confirmed the local version renders and works; a pass on the live Vercel URL is still worth doing before recording.
+- **Rerun `resilience-demo/`** fresh (per its README) at recording time — it works (verified above), but was torn down afterward, not left running.
+- **Record the video** (<3 min), **fill out and submit the Devpost form**. Outside what I can do from here.
 
-**Suggested order for your remaining pass:**
-1. `git add`, commit, push to GitHub (ask me if you want help drafting the commit).
-2. Open the app in a real browser (`npm run dev` in `frontend/`) and fix anything that looks wrong — tell me and I'll patch it.
-3. Deploy `frontend/` to Vercel, update the README/submission with the live URL.
-4. Walk through `resilience-demo/README.md` once, before recording, to confirm it actually works.
-5. Run `scripts/reset_demo_data.py` for a clean seed state, then record the video.
-6. Submit on Devpost.
+**Suggested remaining order:**
+1. Quick click-through of `https://continuum-beta-umber.vercel.app/` in a real browser.
+2. `cd resilience-demo && docker compose up -d && docker exec resilience-demo-roach1-1 ./cockroach --host=roach1:26357 init --insecure`, then the workload + kill/restart steps from `resilience-demo/README.md`.
+3. `python scripts/reset_demo_data.py` for a clean seed state in the live app before recording.
+4. Record the video, then submit on Devpost.

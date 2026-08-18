@@ -52,9 +52,9 @@ def main():
             cur.close()
             conn.close()
             elapsed_ms = (time.time() - start) * 1000
-            print(f"[{time.strftime('%H:%M:%S')}] OK   via {node_name:<7} ({elapsed_ms:6.1f}ms)  -> {row[0]}")
+            print(f"[{time.strftime('%H:%M:%S')}] OK   via {node_name:<7} ({elapsed_ms:6.1f}ms)  -> {row[0]}", flush=True)
         except Exception as exc:  # noqa: BLE001 — expected while a node is down; the point of the demo
-            print(f"[{time.strftime('%H:%M:%S')}] FAIL via {node_name:<7} -> {exc}")
+            print(f"[{time.strftime('%H:%M:%S')}] FAIL via {node_name:<7} -> {exc}", flush=True)
         time.sleep(1)
 
 

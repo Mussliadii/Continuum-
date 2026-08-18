@@ -1,5 +1,3 @@
-version: "3.8"
-
 # Local 3-node CockroachDB cluster, insecure mode, for demonstrating the
 # resilience mechanism that makes CockroachDB suited as an agent's memory
 # layer: kill one node, queries keep succeeding, the cluster self-heals.

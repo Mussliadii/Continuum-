@@ -1,4 +1,4 @@
-# Resilience Demo (no desktop install required)
+# Resilience Demo
 
 This demonstrates the resilience mechanism that makes CockroachDB suited as
 an agent's memory layer: a 3-node cluster keeps serving reads even after
@@ -12,29 +12,28 @@ local cluster runs the same CockroachDB version (v26.2.5) to demonstrate
 the underlying mechanism directly. Say this plainly in the video — don't
 imply the Cloud Serverless cluster itself was killed.
 
-## Run it with zero installs, via GitHub Codespaces
+**Status: verified working end-to-end** (with Docker Desktop, Windows) —
+see the sample run at the bottom of this file for exactly what to expect.
 
-1. Push this repo to GitHub (if not already).
-2. On the repo page: **Code → Codespaces → Create codespace on main**.
-   This opens a full Linux + Docker environment in your browser — nothing
-   installs on your own machine. GitHub gives every free account 60
-   hours/month of this at no cost.
-3. Once the Codespace terminal is ready, run:
+## Run it
+
+Requires [Docker Desktop](https://www.docker.com/products/docker-desktop/).
+
+1. From the repo root:
    ```bash
    cd resilience-demo
    docker compose up -d
-   docker exec -it roach1 ./cockroach --host=roach1:26357 init --insecure
+   docker exec resilience-demo-roach1-1 ./cockroach --host=roach1:26357 init --insecure
    ```
-4. Open a **second terminal** in the same Codespace (there's a `+` in the
-   terminal panel) and start the workload:
+2. In a **second terminal**, start the workload:
    ```bash
    cd resilience-demo
    pip install psycopg2-binary
-   python3 workload.py
+   python workload.py
    ```
    You'll see one line per second, round-robining across all three nodes'
    SQL ports — this is what you record for the video.
-5. In the **first terminal**, kill one node to simulate its failure:
+3. In the **first terminal**, kill one node to simulate its failure:
    ```bash
    docker compose stop roach2
    ```
@@ -43,13 +42,13 @@ imply the Cloud Serverless cluster itself was killed.
    the same row successfully, **without interruption**. That's the
    point: the data survived because it's replicated, not because any one
    node is special.
-6. Bring it back and show self-healing:
+4. Bring it back and show self-healing:
    ```bash
    docker compose start roach2
    ```
-   Give it a few seconds — `roach2`'s lines in the workload output resume
-   succeeding once it rejoins and catches up.
-7. When done recording: `docker compose down -v` to clean up.
+   `roach2`'s lines in the workload output resume succeeding within a
+   few seconds of it rejoining and catching up.
+5. When done recording: `docker compose down -v` to clean up.
 
 ## What to narrate in the video
 
@@ -60,7 +59,35 @@ imply the Cloud Serverless cluster itself was killed.
 - Point out `roach2` recovering on its own once restarted — no manual
   data recovery step.
 
-## Alternative: Docker Desktop on your own machine
+## Sample run (actual output from a verification pass)
 
-If you'd rather not use Codespaces, the exact same steps work locally
-once Docker Desktop is installed — nothing else in this folder changes.
+```
+[02:58:57] OK   via roach1  (  14.9ms)  -> connection pool exhaustion
+[02:58:58] OK   via roach2  (  12.7ms)  -> connection pool exhaustion
+[02:58:59] OK   via roach3  (   5.0ms)  -> connection pool exhaustion
+[02:59:00] OK   via roach1  (   6.1ms)  -> connection pool exhaustion
+                              # <- roach2 stopped here
+[02:59:01] FAIL via roach2  -> connection to server at "localhost" ... server is not accepting clients, try another node
+[02:59:02] OK   via roach3  (   8.7ms)  -> connection pool exhaustion
+[02:59:03] OK   via roach1  (   5.5ms)  -> connection pool exhaustion
+[02:59:08] FAIL via roach2  -> Connection refused ... Is the server running on that host?
+[02:59:09] OK   via roach3  (   7.6ms)  -> connection pool exhaustion
+[02:59:10] OK   via roach1  (  29.0ms)  -> connection pool exhaustion
+                              # <- roach2 restarted here
+[02:59:23] OK   via roach3  (  18.9ms)  -> connection pool exhaustion
+[02:59:24] OK   via roach1  (  14.4ms)  -> connection pool exhaustion
+[02:59:29] OK   via roach2  (3884.9ms)  -> connection pool exhaustion   # rejoining, slow first query
+[02:59:30] OK   via roach3  (   6.9ms)  -> connection pool exhaustion
+[02:59:31] OK   via roach1  (   8.4ms)  -> connection pool exhaustion
+[02:59:32] OK   via roach2  (  16.5ms)  -> connection pool exhaustion  # fully recovered
+```
+
+## Alternative: GitHub Codespaces (no desktop install)
+
+`.devcontainer/devcontainer.json` at the repo root is configured for this,
+but in our own testing the Docker-in-Docker feature did not reliably
+attach inside a Codespace even after a container rebuild — Docker
+Desktop on your own machine is the path we actually verified working.
+If you want to try Codespaces anyway: **Code → Create codespace on
+master**, then the same commands above should work once `docker
+--version` succeeds inside it.
