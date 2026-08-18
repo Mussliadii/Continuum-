@@ -1,0 +1,29 @@
+# Environment
+.env
+.env.local
+*.pem
+
+# Node / Next.js
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/.vercel/
+npm-debug.log*
+
+# Python
+backend/__pycache__/
+backend/**/__pycache__/
+backend/.venv/
+backend/venv/
+*.pyc
+
+# Lambda build/deploy artifacts (scripts/build_lambda_package.py)
+/build/
+/dist/
+*.log
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

@@ -1,0 +1,78 @@
+@import "tailwindcss";
+
+:root {
+  --color-background: #020617;
+  --color-surface: #0e1223;
+  --color-surface-raised: #1a1e2f;
+  --color-border: #334155;
+  --color-foreground: #f8fafc;
+  --color-muted-foreground: #94a3b8;
+  --color-primary: #0f172a;
+  --color-accent: #3b82f6;
+
+  --color-status-healthy: #22c55e;
+  --color-status-warning: #f59e0b;
+  --color-status-critical: #ef4444;
+  --color-status-info: #3b82f6;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+}
+
+@theme inline {
+  --color-background: var(--color-background);
+  --color-surface: var(--color-surface);
+  --color-surface-raised: var(--color-surface-raised);
+  --color-border: var(--color-border);
+  --color-foreground: var(--color-foreground);
+  --color-muted-foreground: var(--color-muted-foreground);
+  --color-primary: var(--color-primary);
+  --color-accent: var(--color-accent);
+  --color-status-healthy: var(--color-status-healthy);
+  --color-status-warning: var(--color-status-warning);
+  --color-status-critical: var(--color-status-critical);
+  --color-status-info: var(--color-status-info);
+  --font-mono: var(--font-fira-code), ui-monospace, monospace;
+  --font-sans: var(--font-fira-sans), system-ui, sans-serif;
+}
+
+body {
+  background: var(--color-background);
+  color: var(--color-foreground);
+  font-family: var(--font-sans);
+}
+
+/* Live cluster-health pulse — the one piece of ambient motion the product
+   keeps running continuously, because it *is* the memory layer's proof of
+   life. See DESIGN.MD §2.5. */
+@keyframes cluster-pulse {
+  0%,
+  100% {
+    opacity: 0.6;
+    transform: scale(0.9);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+}
+
+.cluster-pulse {
+  animation: cluster-pulse 2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cluster-pulse {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+}

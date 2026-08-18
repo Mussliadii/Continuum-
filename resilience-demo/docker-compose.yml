@@ -1,0 +1,60 @@
+version: "3.8"
+
+# Local 3-node CockroachDB cluster, insecure mode, for demonstrating the
+# resilience mechanism that makes CockroachDB suited as an agent's memory
+# layer: kill one node, queries keep succeeding, the cluster self-heals.
+#
+# This is separate from the production deployment (CockroachDB Cloud
+# Serverless, which abstracts node topology away entirely — see PLAN.MD
+# §9 for why this local cluster exists instead of demoing against Cloud).
+#
+# Pinned to v26.2.5 to match the Cloud Serverless cluster's version.
+
+services:
+  roach1:
+    image: cockroachdb/cockroach:v26.2.5
+    hostname: roach1
+    command: start --insecure --join=roach1:26357,roach2:26357,roach3:26357
+      --advertise-addr=roach1:26357 --listen-addr=roach1:26357
+      --http-addr=roach1:8080 --sql-addr=roach1:26257
+    ports:
+      - "26257:26257"
+      - "8080:8080"
+    volumes:
+      - roach1-data:/cockroach/cockroach-data
+    networks: [roachnet]
+
+  roach2:
+    image: cockroachdb/cockroach:v26.2.5
+    hostname: roach2
+    command: start --insecure --join=roach1:26357,roach2:26357,roach3:26357
+      --advertise-addr=roach2:26357 --listen-addr=roach2:26357
+      --http-addr=roach2:8081 --sql-addr=roach2:26258
+    ports:
+      - "26258:26258"
+      - "8081:8081"
+    volumes:
+      - roach2-data:/cockroach/cockroach-data
+    networks: [roachnet]
+
+  roach3:
+    image: cockroachdb/cockroach:v26.2.5
+    hostname: roach3
+    command: start --insecure --join=roach1:26357,roach2:26357,roach3:26357
+      --advertise-addr=roach3:26357 --listen-addr=roach3:26357
+      --http-addr=roach3:8082 --sql-addr=roach3:26259
+    ports:
+      - "26259:26259"
+      - "8082:8082"
+    volumes:
+      - roach3-data:/cockroach/cockroach-data
+    networks: [roachnet]
+
+networks:
+  roachnet:
+    driver: bridge
+
+volumes:
+  roach1-data:
+  roach2-data:
+  roach3-data:

@@ -1,0 +1,6 @@
+# Local development only — not bundled into the Lambda deployment package.
+-r requirements.txt
+python-dotenv
+fastapi
+uvicorn[standard]
+boto3
