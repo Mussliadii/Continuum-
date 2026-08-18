@@ -3,6 +3,13 @@
 .env.local
 *.pem
 
+# Internal working docs — kept locally for reference, not part of the
+# public repo (hackathon briefing copies + day-by-day build log/design notes)
+DESIGN.MD
+PLAN.MD
+Des.md
+Resource.md
+
 # Node / Next.js
 frontend/node_modules/
 frontend/.next/

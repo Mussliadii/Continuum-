@@ -102,11 +102,11 @@ export function ChatPanel({
           type="submit"
           disabled={sending || !draft.trim()}
           aria-label="Send message"
-          className="shrink-0 h-11 w-11 flex items-center justify-center rounded-md bg-accent text-white disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer hover:opacity-90 transition-opacity"
+          className="shrink-0 h-11 w-11 flex items-center justify-center rounded-md bg-accent text-accent-foreground disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer hover:opacity-90 transition-opacity"
         >
           {sending ? (
             <span
-              className="h-4 w-4 rounded-full border-2 border-white/40 border-t-white animate-spin"
+              className="h-4 w-4 rounded-full border-2 border-accent-foreground/30 border-t-accent-foreground animate-spin"
               aria-hidden
             />
           ) : (

@@ -51,7 +51,7 @@ export function MessageBubble({
         className={`max-w-[75ch] rounded-lg px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap ${
           isAgent
             ? "bg-surface border border-border text-foreground"
-            : "bg-accent text-white"
+            : "bg-accent text-accent-foreground"
         } ${message.pending ? "opacity-70" : ""}`}
       >
         {isAgent ? renderWithCitations(message.content, onCitationClick) : message.content}

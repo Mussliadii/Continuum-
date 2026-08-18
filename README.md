@@ -1,114 +1,212 @@
+<div align="center">
+
 # Continuum
 
-**Institutional memory that never goes down.**
+### Institutional memory that never goes down.
 
-Continuum is an incident copilot for on-call SREs. It recalls semantically
-similar past incidents and their resolutions, checks the live health of the
-CockroachDB cluster that stores its own memory when an incident looks
-database-related, and keeps a transactional log of everything it does so
-context survives a reload or a Lambda cold start. When an incident is
-resolved, the summary is embedded and folded back into the knowledge base —
-the agent's memory grows from what it just handled.
+An incident copilot for on-call SREs, built on CockroachDB as a persistent, always-on agentic memory layer.
 
-**Live demo:** [continuum-beta-umber.vercel.app](https://continuum-beta-umber.vercel.app/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-2ee6a8.svg)](LICENSE)
+[![Next.js](https://img.shields.io/badge/Next.js-16-0d1114?logo=next.js&logoColor=2ee6a8)](frontend)
+[![Python](https://img.shields.io/badge/Python-3.12-0d1114?logo=python&logoColor=2ee6a8)](backend)
+[![CockroachDB](https://img.shields.io/badge/CockroachDB-Serverless-0d1114?logo=cockroachlabs&logoColor=2ee6a8)](https://www.cockroachlabs.com/)
+[![AWS Lambda](https://img.shields.io/badge/AWS-Lambda-0d1114?logo=awslambda&logoColor=2ee6a8)](backend)
 
-Built for the [CockroachDB × AWS Hackathon — Build with Agentic Memory](https://cockroachdb-ai.devpost.com/).
+**[Live demo](https://continuum-beta-umber.vercel.app/)** · Built for the [CockroachDB × AWS Hackathon — Build with Agentic Memory](https://cockroachdb-ai.devpost.com/)
 
-See [DESIGN.MD](DESIGN.MD) for the product/UI design rationale and
-[PLAN.MD](PLAN.MD) for the full build log, including bugs found and fixed
-along the way.
+</div>
 
-## Architecture
+---
 
-```mermaid
-flowchart LR
-    subgraph Frontend["Frontend (Vercel)"]
-        UI["Next.js chat UI\nTopBar · ChatPanel · RightRail"]
-    end
+## Table of contents
 
-    subgraph AWS["AWS"]
-        APIGW["API Gateway\n(HTTP API, $default route)"]
-        Lambda["Lambda\nagent.py — Groq tool-calling loop"]
-    end
+- [The problem](#the-problem)
+- [What it does](#what-it-does)
+- [Architecture](#architecture)
+- [Request flow](#request-flow-one-chat-turn)
+- [Data model](#data-model)
+- [CockroachDB tools used](#cockroachdb-tools-used)
+- [AWS services used](#aws-services-used)
+- [Tech stack](#tech-stack)
+- [Project structure](#project-structure)
+- [Setup & run](#setup--run)
+- [Resilience demo](#resilience-demo)
+- [Cost](#cost)
+- [License](#license)
 
-    subgraph CRDB["CockroachDB Cloud (Serverless)"]
-        Vector["incidents table\nVECTOR(768) + vector index"]
-        Txn["active_incidents /\nincident_events\n(transactional state)"]
-        MCP["Managed MCP Server\n(cluster introspection)"]
-    end
+## The problem
 
-    Groq["Groq API\n(LLM reasoning)"]
-    Gemini["Gemini API\n(embeddings)"]
+AI agents are moving into production workflows — writing code, running
+pipelines, diagnosing incidents. But an agent's memory is only as
+trustworthy as the database behind it. Most agent memory today is bolted
+onto a database that wasn't built for this: it degrades under load, loses
+state on failover, and forces a separate vector store to stay in sync with
+the operational one.
 
-    UI -->|fetch /chat, /incidents/*| APIGW --> Lambda
-    Lambda -->|cosine similarity search| Vector
-    Lambda -->|read/write incident state| Txn
-    Lambda -->|service-account bearer auth| MCP
-    Lambda --> Groq
-    Lambda --> Gemini
-    Txn -.->|on resolve: embed + append| Vector
-```
+Continuum is a concrete answer to "what does an agent actually need from
+its memory layer, and why does that need CockroachDB specifically?" — an
+SRE incident copilot where the memory (past incidents, active state,
+semantic search) all lives in one distributed, always-on database, and
+where the agent can inspect the health of that database as one of its own
+reasoning tools.
 
 ## What it does
 
 1. An SRE describes symptoms in the chat UI.
 2. The agent (Groq, tool-calling) decides whether to search the incident
-   knowledge base (`search_similar_incidents`) and/or check the memory
-   layer's own live health (`get_cluster_health`) before answering.
-3. Every turn is logged to CockroachDB transactionally — reload the page
-   or let Lambda cold-start, the incident's state is still there.
-4. When the incident is marked resolved, its summary is embedded (Gemini)
-   and appended to the knowledge base — the next similar incident will
-   find this one too.
+   knowledge base or check the memory layer's own live health before
+   answering — it isn't hardcoded to always do either.
+3. Every turn is logged to CockroachDB transactionally — reload the page,
+   or let the Lambda cold-start, and the incident's state is still there.
+4. When the incident is marked resolved, its summary is embedded and
+   appended to the knowledge base. The next similar incident will find
+   this one too — the memory grows from what the agent just handled.
+
+## Architecture
+
+```mermaid
+flowchart LR
+    subgraph Frontend["Frontend — Vercel"]
+        UI["Next.js chat UI\nTopBar · ChatPanel · RightRail"]
+    end
+
+    subgraph AWS["AWS"]
+        APIGW["API Gateway\nHTTP API · $default route"]
+        Lambda["Lambda\nagent.py — Groq tool-calling loop"]
+    end
+
+    subgraph CRDB["CockroachDB Cloud — Serverless"]
+        Vector["incidents\nVECTOR(768) + vector index"]
+        Txn["active_incidents\nincident_events\n(transactional state)"]
+        MCP["Managed MCP Server\n(cluster introspection)"]
+    end
+
+    Groq["Groq API\nLLM reasoning"]
+    Gemini["Gemini API\nembeddings"]
+
+    UI -->|"fetch /chat, /incidents/*"| APIGW --> Lambda
+    Lambda -->|cosine similarity search| Vector
+    Lambda -->|read / write incident state| Txn
+    Lambda -->|service-account bearer auth| MCP
+    Lambda --> Groq
+    Lambda --> Gemini
+    Txn -.->|on resolve: embed + append| Vector
+
+    style CRDB fill:#0d1114,stroke:#2ee6a8,color:#e9eff2
+    style AWS fill:#0d1114,stroke:#4fa8ff,color:#e9eff2
+    style Frontend fill:#0d1114,stroke:#8b98a2,color:#e9eff2
+```
+
+## Request flow (one chat turn)
+
+```mermaid
+sequenceDiagram
+    actor SRE
+    participant UI as Next.js UI
+    participant API as API Gateway
+    participant Agent as Lambda (agent.py)
+    participant Groq
+    participant CRDB as CockroachDB
+    participant MCP as Managed MCP Server
+
+    SRE->>UI: describes symptoms
+    UI->>API: POST /chat
+    API->>Agent: invoke
+    Agent->>CRDB: log user message (incident_events)
+    Agent->>Groq: messages + tool definitions
+    Groq-->>Agent: tool_call: search_similar_incidents
+    Agent->>CRDB: cosine similarity search (vector index)
+    CRDB-->>Agent: top-k similar incidents
+    Groq-->>Agent: tool_call: get_cluster_health
+    Agent->>MCP: get_cluster / show_running_queries
+    MCP-->>Agent: live cluster state
+    Agent->>Groq: tool results
+    Groq-->>Agent: final response + citations
+    Agent->>CRDB: log agent response + citations
+    Agent-->>UI: response, similar_incidents, cluster_health
+    UI-->>SRE: renders answer, evidence, live health
+```
+
+## Data model
+
+```mermaid
+erDiagram
+    incidents {
+        uuid id PK
+        string title
+        string description
+        string root_cause
+        string resolution
+        string severity
+        string_array tags
+        vector embedding "VECTOR(768), cosine index"
+        timestamptz resolved_at
+    }
+    active_incidents {
+        uuid id PK
+        string title
+        string status
+        string severity
+        timestamptz opened_at
+        timestamptz closed_at
+    }
+    incident_events {
+        uuid id PK
+        uuid incident_id FK
+        string actor "agent | user"
+        string event_type "message | citation | ..."
+        string content
+        timestamptz created_at
+    }
+    active_incidents ||--o{ incident_events : "has many"
+    active_incidents }o..o{ incidents : "resolve() embeds + appends"
+```
 
 ## CockroachDB tools used
 
-- **Distributed Vector Indexing** — the `incidents` knowledge base
-  (`backend/db/schema.sql`) stores a `VECTOR(768)` embedding per incident
-  with a `vector_cosine_ops` index. `backend/src/vector_search.py` embeds
-  the live symptom description (Gemini, `RETRIEVAL_QUERY`) and ranks past
-  incidents by cosine distance. `scripts/seed_incidents.py` seeds 18
-  realistic incidents; resolving a new one (`backend/src/incidents.py:resolve_incident`)
-  embeds and appends it back — the knowledge base grows from use.
-- **Managed MCP Server** — `backend/src/mcp_tool.py` calls the server's
-  `list_clusters`, `get_cluster`, and `show_running_queries` tools over
-  JSON-RPC, authenticated with a service-account API key (server-to-server,
-  no interactive OAuth) as documented in CockroachDB's MCP quickstart. The
-  agent uses this as a live tool during reasoning — e.g. "is the incident
-  actually a database problem?" — and the result is surfaced to the SRE
-  in the UI's Cluster Health panel.
-- **ccloud CLI** — used for cluster provisioning and inspecting cluster
-  state during development (CockroachDB Cloud Serverless doesn't expose
-  node-level operations to end users by design — see PLAN.MD §9 for what
-  that constraint changed about our resilience-demo plan).
+| Tool | How it's used |
+|---|---|
+| **Distributed Vector Indexing** | `incidents` (`backend/db/schema.sql`) stores a `VECTOR(768)` embedding per incident with a `vector_cosine_ops` index. `backend/src/vector_search.py` embeds the live symptom description and ranks past incidents by cosine distance. `scripts/seed_incidents.py` seeds 18 realistic incidents; resolving a new one (`backend/src/incidents.py`) embeds and appends it back — the knowledge base grows from use. |
+| **Managed MCP Server** | `backend/src/mcp_tool.py` calls `list_clusters`, `get_cluster`, and `show_running_queries` over JSON-RPC, authenticated with a service-account API key (server-to-server, no interactive OAuth). The agent uses this as a live tool during reasoning — "is this actually a database problem?" — surfaced in the UI's Cluster Health panel. |
+| **ccloud CLI** | Cluster provisioning and inspection during development. |
 
 ## AWS services used
 
-- **AWS Lambda** — runs the agent (`backend/src/handler.py` /
-  `backend/src/agent.py`), deployed as a Python 3.12 function built for
-  Lambda's Linux runtime from a Windows dev machine (`scripts/build_lambda_package.py`
-  cross-compiles dependencies via manylinux wheels — see PLAN.MD Day 6 for
-  why that was non-trivial).
-- **Amazon API Gateway** — a quick-created HTTP API with a single
-  `$default` catch-all route to the Lambda; `handler.py` does its own
-  routing from `rawPath`, which is what let deployment stay a single
-  boto3 call (`scripts/deploy_lambda.py`) instead of hand-built per-route
-  resources.
+| Service | How it's used |
+|---|---|
+| **AWS Lambda** | Runs the agent (`backend/src/handler.py`, `agent.py`) — Python 3.12, deployed via `scripts/build_lambda_package.py` + `scripts/deploy_lambda.py` (cross-compiled for Lambda's Linux runtime, no Docker/AWS CLI required to build the deployment package). |
+| **Amazon API Gateway** | A single `$default` catch-all HTTP API route to the Lambda — `handler.py` does its own routing from `rawPath`, so the whole deployment is one idempotent boto3 script. |
 
 ## Tech stack
 
 | Layer | Choice |
 |---|---|
-| Frontend | Next.js 16 (App Router, Tailwind v4), deployed on Vercel |
-| Backend | Python 3.12 on AWS Lambda |
-| LLM reasoning | Groq API (`openai/gpt-oss-120b`) |
-| Embeddings | Gemini API (`gemini-embedding-001`, 768 dims) |
-| Database | CockroachDB Cloud (Serverless) |
+| Frontend | Next.js 16 (App Router, Tailwind v4) — Vercel |
+| Backend | Python 3.12 — AWS Lambda |
+| LLM reasoning | Groq (`openai/gpt-oss-120b`), tool-calling |
+| Embeddings | Gemini (`gemini-embedding-001`, 768 dims) |
+| Database | CockroachDB Cloud — Serverless |
 
-Every external dependency (CockroachDB Serverless, Groq, Gemini, Vercel,
-AWS Lambda/API Gateway free tier) runs at **$0** for this project's scale —
-see PLAN.MD §5 for the cost breakdown and why Bedrock was deliberately not
-used.
+## Project structure
+
+```
+.
+├── backend/
+│   ├── db/schema.sql          # tables + vector index
+│   └── src/
+│       ├── agent.py           # Groq tool-calling loop
+│       ├── handler.py         # Lambda entry point / routing
+│       ├── mcp_tool.py        # CockroachDB MCP client
+│       ├── vector_search.py   # semantic search over incidents
+│       ├── incidents.py       # transactional incident state
+│       ├── embeddings.py      # Gemini embedding client
+│       ├── db.py              # CockroachDB connection
+│       └── local_server.py    # local dev server (mirrors handler.py)
+├── frontend/                  # Next.js app
+├── scripts/                   # setup, seeding, deployment, demo reset
+├── resilience-demo/           # local multi-node resilience demonstration
+└── .devcontainer/             # Codespaces config for resilience-demo
+```
 
 ## Setup & run
 
@@ -116,8 +214,7 @@ used.
 
 - A CockroachDB Cloud Serverless cluster ([free, no card](https://cockroachlabs.cloud/signup))
 - API keys: [Groq](https://console.groq.com) (free), [Gemini](https://aistudio.google.com/apikey) (free)
-- A CockroachDB Managed MCP service-account key (Cloud Console → Access
-  Management → Service Accounts → role `Cluster Operator`)
+- A CockroachDB Managed MCP service-account key (Cloud Console → Access Management → Service Accounts → role `Cluster Operator`)
 - An AWS account (for deployment)
 - Python 3.12, Node.js 20+
 
@@ -168,12 +265,28 @@ npm run dev
 python scripts/reset_demo_data.py
 ```
 
-### Resilience demo
+## Resilience demo
 
-See [`resilience-demo/README.md`](resilience-demo/README.md) — a 3-node
-local CockroachDB cluster (via GitHub Codespaces, no desktop install
-required) demonstrating that queries keep succeeding through a node
-failure and the cluster self-heals.
+`resilience-demo/` runs the same CockroachDB version as production
+(v26.2.5) as a local 3-node cluster, to make a concrete claim visible:
+kill a node, queries keep succeeding on the surviving nodes, restart it,
+it rejoins and recovers on its own. This is separate from the production
+deployment — CockroachDB Cloud Serverless is fully managed and
+intentionally abstracts node-level control away from end users. See
+[`resilience-demo/README.md`](resilience-demo/README.md) for exact steps
+and a captured sample run.
+
+## Cost
+
+Every dependency runs at **$0** for this project's scale:
+
+| Service | Cost |
+|---|---|
+| CockroachDB Cloud Serverless | Free tier, no card required |
+| Groq API | Free tier, no card required |
+| Gemini API | Free tier, no card, no expiry |
+| AWS Lambda + API Gateway | Free tier (well within limits) |
+| Vercel | Free tier |
 
 ## License
 

@@ -1,19 +1,23 @@
 @import "tailwindcss";
 
 :root {
-  --color-background: #020617;
-  --color-surface: #0e1223;
-  --color-surface-raised: #1a1e2f;
-  --color-border: #334155;
-  --color-foreground: #f8fafc;
-  --color-muted-foreground: #94a3b8;
-  --color-primary: #0f172a;
-  --color-accent: #3b82f6;
+  /* A custom near-black, not the stock Tailwind slate-900/950 hex values —
+     deliberately avoiding the "every AI dashboard looks the same" palette.
+     Signature brand color is a phosphor terminal green, not another blue. */
+  --color-background: #0a0d10;
+  --color-surface: #12171c;
+  --color-surface-raised: #1c232b;
+  --color-border: #2a323b;
+  --color-foreground: #e9eff2;
+  --color-muted-foreground: #8b98a2;
+  --color-primary: #0d1114;
+  --color-accent: #2ee6a8;
+  --color-accent-foreground: #06110c;
 
-  --color-status-healthy: #22c55e;
-  --color-status-warning: #f59e0b;
-  --color-status-critical: #ef4444;
-  --color-status-info: #3b82f6;
+  --color-status-healthy: #2ee6a8;
+  --color-status-warning: #f5a623;
+  --color-status-critical: #ff5470;
+  --color-status-info: #4fa8ff;
 
   --space-1: 4px;
   --space-2: 8px;
@@ -36,6 +40,7 @@
   --color-muted-foreground: var(--color-muted-foreground);
   --color-primary: var(--color-primary);
   --color-accent: var(--color-accent);
+  --color-accent-foreground: var(--color-accent-foreground);
   --color-status-healthy: var(--color-status-healthy);
   --color-status-warning: var(--color-status-warning);
   --color-status-critical: var(--color-status-critical);
@@ -56,12 +61,14 @@ body {
 @keyframes cluster-pulse {
   0%,
   100% {
-    opacity: 0.6;
+    opacity: 0.65;
     transform: scale(0.9);
+    box-shadow: 0 0 0 0 color-mix(in srgb, currentColor 55%, transparent);
   }
   50% {
     opacity: 1;
-    transform: scale(1.1);
+    transform: scale(1.15);
+    box-shadow: 0 0 8px 2px color-mix(in srgb, currentColor 55%, transparent);
   }
 }
 
