@@ -104,7 +104,7 @@ sequenceDiagram
     actor SRE
     participant UI as Next.js UI
     participant API as API Gateway
-    participant Agent as Lambda (agent.py)
+    participant Agent as Lambda
     participant Groq
     participant CRDB as CockroachDB
     participant MCP as Managed MCP Server
