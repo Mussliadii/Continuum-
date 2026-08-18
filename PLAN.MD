@@ -19,7 +19,7 @@ From [Des.md](Des.md) / [Resource.md](Resource.md):
 - [x] LICENSE (MIT) present at repo root
 - [ ] Repo pushed to GitHub, public, LICENSE visible in About section — **your action**: I haven't pushed (you asked me to hold until you approve)
 - [x] README with setup/run instructions
-- [ ] Public functional demo app URL — Vercel deploy is yours to do (per your call earlier); once live, add the URL here and to the submission
+- [x] Public functional demo app URL → **https://continuum-beta-umber.vercel.app/** (verified: page loads, `NEXT_PUBLIC_API_BASE_URL` correctly baked into the production JS bundle, CORS from this exact origin to the Lambda API confirmed)
 - [ ] Demo video <3 min — **your action**, needs a screen recorder/mic I don't have access to
 - [x] Written explanation: which CockroachDB tools used + how (README)
 - [x] Written explanation: which AWS services used + how (README)

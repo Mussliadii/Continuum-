@@ -10,6 +10,8 @@ context survives a reload or a Lambda cold start. When an incident is
 resolved, the summary is embedded and folded back into the knowledge base —
 the agent's memory grows from what it just handled.
 
+**Live demo:** [continuum-beta-umber.vercel.app](https://continuum-beta-umber.vercel.app/)
+
 Built for the [CockroachDB × AWS Hackathon — Build with Agentic Memory](https://cockroachdb-ai.devpost.com/).
 
 See [DESIGN.MD](DESIGN.MD) for the product/UI design rationale and
